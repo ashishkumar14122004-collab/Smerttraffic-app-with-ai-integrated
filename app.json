@@ -1,0 +1,59 @@
+import React, { useEffect, useState } from "react";
+import { View } from "react-native";
+import MapView, { Marker, Polyline } from "react-native-maps";
+import Geolocation from "react-native-geolocation-service";
+import polyline from "@mapbox/polyline";
+
+export default function App() {
+  const [region, setRegion] = useState(null);
+  const [coords, setCoords] = useState([]);
+
+  // Get current location
+  useEffect(() => {
+    Geolocation.getCurrentPosition(
+      pos => setRegion({
+        latitude: pos.coords.latitude,
+        longitude: pos.coords.longitude,
+        latitudeDelta: 0.05,
+        longitudeDelta: 0.05
+      }),
+      err => console.log(err),
+      { enableHighAccuracy: true }
+    );
+  }, []);
+
+  // Fetch route from Google Directions API
+  useEffect(() => {
+    async function fetchRoute() {
+      const origin = "28.6139,77.2090";      // Delhi
+      const destination = "28.5355,77.3910"; // Noida
+      const apiKey = "YOUR_GOOGLE_MAPS_KEY";
+
+      const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${origin}&destination=${destination}&key=${apiKey}`;
+
+      try {
+        let response = await fetch(url);
+        let json = await response.json();
+        let points = polyline.decode(json.routes[0].overview_polyline.points);
+        let routeCoords = points.map(p => ({ latitude: p[0], longitude: p[1] }));
+        setCoords(routeCoords);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    fetchRoute();
+  }, []);
+
+  if (!region) return null;
+
+  return (
+    <View style={{ flex: 1 }}>
+      <MapView style={{ flex: 1 }} initialRegion={region}>
+        <Marker coordinate={region} title="You are here" />
+        <Polyline coordinates={coords} strokeColor="blue" strokeWidth={4} />
+      </MapView>
+    </View>
+  );
+}
+
